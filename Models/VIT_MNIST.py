@@ -16,31 +16,53 @@ class MultiHeadSelfAttention(nn.Module):
         self.q_mappings = nn.ModuleList([nn.Linear(d_head, d_head) for _ in range(self.n_heads)])
         self.k_mappings = nn.ModuleList([nn.Linear(d_head, d_head) for _ in range(self.n_heads)])
         self.v_mappings = nn.ModuleList([nn.Linear(d_head, d_head) for _ in range(self.n_heads)])
+        self.qkv = nn.Linear(d, 3 * d)
+        self.out = nn.Linear(d, d)
         self.d_head = d_head
         self.softmax = nn.Softmax(dim=-1) # all dims...
 
-    def forward(self, sequences):
-        """
-        :param sequences:   Sequences has shape (N, seq_length, token_dim) ->
-                            then we split to (N, seq_length, n_heads, token_dim / n_heads)
-        :return: # And come back to    (N, seq_length, item_dim)  (through concatenation)
-        """
-        result = []
-        for seq in sequences:
-            seq_result = []
-            for head in range(self.n_heads):
-                q_mapping = self.q_mappings[head]
-                k_mapping = self.k_mappings[head]
-                v_mapping = self.v_mappings[head]
+    def forward(self, x):
+        # vectorized
+        batch_size, seq_len, _ = x.shape
 
-                seq_part = seq[:, head*self.d_head : (head + 1)*self.d_head]
-                q, k, v = q_mapping(seq_part), k_mapping(seq_part), v_mapping(seq_part)
+        qkv = self.qkv(x)  # [batch, seq_len, 3 * d]
+        qkv = qkv.reshape(batch_size, seq_len, self.n_heads, 3 * self.d_head)
+        qkv = qkv.permute(2, 0, 1, 3)  # [n_heads, batch, seq_len, 3 * d_head]
 
-                attention = self.softmax(q @ k.T / (self.d_head ** 0.5))
-                seq_result.append(attention @ v)
+        q, k, v = torch.chunk(qkv, 3, dim=-1)  # each: [n_heads, batch, seq_len, d_head]
 
-            result.append(torch.hstack(seq_result))
-        return torch.cat([torch.unsqueeze(r, dim=0) for r in result])
+        # Transpose k for matmul
+        attn_scores = (q @ k.transpose(-2, -1)) / (self.d_head ** 0.5)  # [n_heads, batch, seq, seq]
+        attn_weights = self.softmax(attn_scores)
+        attn_output = attn_weights @ v  # [n_heads, batch, seq_len, d_head]
+
+        # Concatenate heads
+        attn_output = attn_output.permute(1, 2, 0, 3).reshape(batch_size, seq_len, self.d)
+
+        return self.out(attn_output)
+
+    # def forward(self, sequences):
+    #     """
+    #     :param sequences:   Sequences has shape (N, seq_length, token_dim) ->
+    #                         then we split to (N, seq_length, n_heads, token_dim / n_heads)
+    #     :return: # And come back to    (N, seq_length, item_dim)  (through concatenation)
+    #     """
+    #     result = []
+    #     for seq in sequences:
+    #         seq_result = []
+    #         for head in range(self.n_heads):
+    #             q_mapping = self.q_mappings[head]
+    #             k_mapping = self.k_mappings[head]
+    #             v_mapping = self.v_mappings[head]
+    #
+    #             seq_part = seq[:, head*self.d_head : (head + 1)*self.d_head]
+    #             q, k, v = q_mapping(seq_part), k_mapping(seq_part), v_mapping(seq_part)
+    #
+    #             attention = self.softmax(q @ k.T / (self.d_head ** 0.5))
+    #             seq_result.append(attention @ v)
+    #
+    #         result.append(torch.hstack(seq_result))
+    #     return torch.cat([torch.unsqueeze(r, dim=0) for r in result])
 
 
 class VIT_Block(nn.Module):
@@ -112,8 +134,10 @@ class MyViT(nn.Module):
         to the latter dimensions. In each sequence, for token i we add to its j-th coordinate the following value:
         """
         # 3) Positional embedding
-        self.pos_embed = nn.Parameter(torch.tensor(get_positional_embeddings(self.n_patches ** 2 + 1, self.hidden_dim)))  # 50X8
-        self.pos_embed.requires_grad = False
+        self.pos_embed = nn.Parameter(
+            get_positional_embeddings(self.n_patches ** 2 + 1, self.hidden_dim),
+            requires_grad=False
+        )
 
         self.blocks = nn.ModuleList([VIT_Block(self.hidden_dim, n_heads) for _ in range(n_blocks)])
 

@@ -1,2 +1,3 @@
 *.pyc
 .idea/
+Mnist_Data/
