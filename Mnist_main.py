@@ -28,15 +28,15 @@ def main():
     train_set = MNIST(root=mnist_root, train=True, download=False, transform=transform)
     test_set = MNIST(root=mnist_root, train=False, download=False, transform=transform)
 
-    train_loader = DataLoader(train_set, shuffle=True, batch_size=1024, num_workers=4, pin_memory=True, persistent_workers=True)
-    test_loader = DataLoader(test_set, shuffle=False, batch_size=1024, num_workers=4, pin_memory=True, persistent_workers=True)
+    train_loader = DataLoader(train_set, shuffle=True, batch_size=2048, num_workers=4, pin_memory=True, persistent_workers=True)
+    test_loader = DataLoader(test_set, shuffle=False, batch_size=2048, num_workers=4, pin_memory=True, persistent_workers=True)
 
     timestamp = datetime.now().strftime('%d_%b_%Y___%H-%M-%S_%p')
     save_model_dir = os.path.join("Mnist_Data", "saved_models", timestamp)
     # Defining model and training options
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device: ", device, f"({torch.cuda.get_device_name(device)})" if torch.cuda.is_available() else "")
-    model = MyViT((1, 28, 28), n_patches=7, n_blocks=6, hidden_d=16, n_heads=4, out_d=10).to(device)
+    model = MyViT((1, 28, 28), n_patches=4, n_blocks=4, hidden_d=16, n_heads=4, out_d=10).to(device)
     N_EPOCHS = 50
     LR = 0.005
     step = 0

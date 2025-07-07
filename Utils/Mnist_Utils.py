@@ -46,7 +46,7 @@ def patchify(imgs, n_patches):
     patches = imgs.unfold(2, ph, ph).unfold(3, pw, pw)  # [B,C,7,7,ph,pw]
     patches = patches.flatten(2, 3)                     # [B,C,49,ph,pw]
     patches = patches.permute(0, 2, 1, 3, 4)            # [B,49,C,ph,pw]
-    return patches.reshape(B, 49, -1)                   # [B,49,16]
+    return patches.reshape(B, n_patches**2, -1)                   # [B,49,16]
 
 
 # def patchify(images, n_patches):
