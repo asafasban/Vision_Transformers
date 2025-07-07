@@ -57,6 +57,5 @@ def get_positional_embeddings(sequence_length, d):
 
 if __name__ == "__main__":
   import matplotlib.pyplot as plt
-
-  plt.imshow(get_positional_embeddings(49, 8), cmap="hot", interpolation="nearest")
+  plt.imshow(get_positional_embeddings(49, 16), cmap="hot", interpolation="nearest")
   plt.show()

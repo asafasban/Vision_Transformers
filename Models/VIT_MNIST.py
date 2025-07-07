@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 from Utils.Mnist_Utils import patchify, get_positional_embeddings
 
+
 class MultiHeadSelfAttention(nn.Module):
     def __init__(self, d, n_heads=2):
         super(MultiHeadSelfAttention, self).__init__()
